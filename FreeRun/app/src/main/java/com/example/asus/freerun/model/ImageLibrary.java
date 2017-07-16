@@ -11,6 +11,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 
 import com.example.asus.freerun.R;
+import com.example.asus.freerun.enemies.Enemy;
 
 /**
  * Created by ASUS on 2017/2/19.

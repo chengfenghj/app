@@ -11,13 +11,17 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.WindowManager;
 
 import com.example.asus.freerun.data.InitiateBean;
+import com.example.asus.freerun.enemies.CrazyEnemy;
+import com.example.asus.freerun.enemies.Enemy;
+import com.example.asus.freerun.enemies.TreasureBox;
 import com.example.asus.freerun.model.Bullet;
-import com.example.asus.freerun.model.Enemy;
+import com.example.asus.freerun.model.EnemyFactory;
 import com.example.asus.freerun.model.ImageLibrary;
 
 import java.util.ArrayList;
@@ -31,6 +35,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
     private WindowManager wm;                  //窗口管理器
     private SensorManager sm;                  //传感器管理器
     private ImageLibrary il;
+    private EnemyFactory enemyFactory;
     private SurfaceHolder surfaceHolder;
     private boolean running;                 //标记线程是否继续
     private int sleepTime =40;               //线程休眠时间
@@ -135,6 +140,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
 
         il =new ImageLibrary(context);
         il.init();
+        enemyFactory =new EnemyFactory();
 
         enemies =new ArrayList<Enemy>();
         bullets =new ArrayList<Bullet>();
@@ -252,23 +258,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
 
         //画背景
         Paint paint1 =new Paint();
-//        RectF dst1 =new RectF(0, 0, screenWidth, screenHeight);
-//        Path path =new Path();
-//        path.moveTo(road1,0);
-//        path.lineTo(screenWidth - road1,0);
-//        path.lineTo(screenWidth -road2,screenHeight);
-//        path.lineTo(road2,screenHeight);
-//        path.lineTo(road1,0);
-//        il.drawBackground(drawCanvas,dst1,path,paint1);
         paint1.setColor(Color.WHITE);
         drawCanvas.drawRect(0, 0, screenWidth, screenHeight, paint1);
 
-        //画出五条线
+        //画出两条线
         Paint paint2 =new Paint();
-        paint2.setColor(Color.GREEN);
-        for(int i =0;i<=5;i++){
-            drawCanvas.drawLine(road1+i*dist1,0,road2+i*dist2,screenHeight,paint2);
-        }
+        paint2.setColor(Color.BLACK);
+
+        drawCanvas.drawLine(road1,0,road2,screenHeight,paint2);
+        drawCanvas.drawLine(road1+5*dist1,0,road2+5*dist2,screenHeight,paint2);
 
         //更新分数和能量并画出来
         grade +=scale;
@@ -318,8 +316,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
             shieldCount();
             paint.setColor(Color.MAGENTA);
             drawCanvas.drawCircle(dotX + dotWidth /2, dotY + dotWidth /2, dotWidth/2 +10,paint);
-//            RectF dst =new RectF(dotX -20, dotY -20, dotX + dotWidth +20, dotY + dotWidth +20);
-//            il.drawShield(drawCanvas,dst,paint);
         }
         //如果有超级护盾
         if(superShield){
@@ -358,40 +354,25 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
         //产生普通的敌人
         if(fall == 0){
             int location =generateEnemy();
-            Enemy enemy =new Enemy(road1+location*dist1+dist1/6,-dist1,dist1*2/3,location,enemySpeed,Enemy.common_enemy);
-            enemy.changPad(dist1, dist2, road1 + dist1 / 6, road2 + dist2/6,screenHeight);
+            Enemy enemy =enemyFactory.getEnemy(Enemy.common_enemy);
+            enemy.setState(road1+location*dist1+dist1/6,-dist1,dist1*2/3,location,enemySpeed);
+            enemy.changePad(dist1, dist2, road1 + dist1 / 6, road2 + dist2/6,screenHeight);
             enemies.add(enemy);
         }
         //产生特殊的敌人
         if(specialFall == 0) {
-            int type = generateEnemy();
-            int location = generateEnemy();
-            Enemy enemy;
-            switch (type) {
-                case 0:
-                case 1:
-                    enemy = new Enemy(road1 + location * dist1 + dist1 / 6, -dist1, dist1 * 2 / 3, location, 2*enemySpeed, Enemy.strong_enemy);
-                    enemy.changPad(dist1, dist2, road1 + dist1 / 6, road2 + dist2 / 6, screenHeight);
-                    enemies.add(enemy);
-                    break;
-                case 2:
-                case 3:
-                    enemy = new Enemy(road1 + location * dist1 + dist1 / 6, -dist1, dist1 * 2 / 3, location, enemySpeed, Enemy.weak_enemy);
-                    enemy.changPad(dist1, dist2, road1 + dist1 / 6, road2 + dist2 / 6, screenHeight);
-                    enemies.add(enemy);
-                    break;
-                case 4:
-                    enemy = new Enemy(road1 + location * dist1 + dist1 / 6, -dist1, dist1 * 2 / 3, location, enemySpeed, Enemy.crazy_enemy);
-                    enemy.changPad(dist1, dist2, road1 + dist1 / 6, road2 + dist2 / 6, screenHeight);
-                    enemies.add(enemy);
-                    break;
-                default:
-            }
+            int type = generateSpecialEnemy();         //产生敌人的类型
+            int location = generateEnemy();            //产生敌人的位置
+            Enemy enemy =enemyFactory.getEnemy(type);
+            enemy.setState(road1+location*dist1+dist1/6,-dist1,dist1*2/3,location,enemySpeed);
+            enemy.changePad(dist1, dist2, road1 + dist1 / 6, road2 + dist2/6,screenHeight);
+            enemies.add(enemy);
         }
         if(treasureFall == 0){
             int location = generateEnemy();
-            Enemy treasure =new Enemy(road1 + location * dist1 + dist1 / 6, -dist1, dist1 / 2, location, enemySpeed-2, Enemy.treasure_box);
-            treasure.changPad(dist1, dist2, road1 + dist1 / 6, road2 + dist2 / 6, screenHeight);
+            Enemy treasure =enemyFactory.getEnemy(Enemy.treasure_box);
+            treasure.setState(road1+location*dist1+dist1/6,-dist1,dist1*2/3,location,enemySpeed);
+            treasure.changePad(dist1, dist2, road1 + dist1 / 6, road2 + dist2 / 6, screenHeight);
             enemies.add(treasure);
         }
 
@@ -399,7 +380,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
         float ex,ey;                     //一个圆左上横纵坐标
         float etx,ety;                   //一个圆右下横纵坐标
         int type;
-        int imageLocation;
         Paint paint3 =new Paint();
         for(int i =0;i<enemies.size();i++){
             //让敌人靠近
@@ -409,7 +389,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
             etx =enemies.get(i).getTailX();
             ety =enemies.get(i).getTailY();
             type =enemies.get(i).getType();
-            imageLocation =enemies.get(i).getImageLocation();
             RectF rect1 =new RectF(ex,ey,etx,ety);
             switch (type){
                 //如果是宝箱，画出黄色的
@@ -419,8 +398,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
                     break;
                 //如果是普通敌人,画出蓝色的
                 case Enemy.common_enemy:
-//                    il.drawEnemys(drawCanvas,rect1,imageLocation,paint3,type);
-//                    enemies.get(i).changeImageLocation();
                     paint3.setColor(Color.BLUE);
                     drawCanvas.drawOval(rect1,paint3);
                     break;
@@ -438,13 +415,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
                 case Enemy.crazy_enemy:
                     paint3.setColor(Color.CYAN);
                     drawCanvas.drawOval(rect1, paint3);
-                    double d =crazing(ex, ey, enemies.get(i).getDiameter(), type);
-                    if(d > 0) {
-                        enemies.get(i).setSpeed((float) (Math.abs(ey - dotY) * 2 * enemySpeed / d));
-                        if(ex > dotX)
-                            enemies.get(i).setSpeedX((float) (Math.abs(ex - dotX) * 2 * enemySpeed / d));
-                        else
-                            enemies.get(i).setSpeedX((float) (-Math.abs(ex - dotX) * 2 * enemySpeed / d));
+                    if(((CrazyEnemy)enemies.get(i)).crazy(dotX,dotY,dotWidth,dist2)){
+                        ((CrazyEnemy)enemies.get(i)).goCrazy(dotX,dotY,dotWidth,enemySpeed);
                     }
                     break;
                 default:
@@ -481,8 +453,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
                     }
                 }
                 else if(type == Enemy.treasure_box){
+                    Log.d("GameView","开宝箱");
+                    int boxType =((TreasureBox)enemies.get(i)).openBox();
+                    Log.d("GameView","宝箱被打开");
+                    openBox(boxType);
+                    Log.d("GameView","反应结束");
                     enemies.remove(i);
-                    openBox();
                 }
                 else {
                     //如果是被黑球砸中，或者没带护盾，游戏结束
@@ -512,99 +488,89 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
     }
 
     /**
-     * 打开宝箱动作
+     * 根据打开箱子类型做出相应的动作
      */
-    private void openBox(){
-//        Log.d("GameView","打开一个宝箱");
+    private void openBox(int boxtype){
+        Log.d("GameView","宝箱动作");
         openBox =true;
         boxCount =20;
-        int open =(int)(Math.random()*23);
-        switch (open){
+        switch (boxtype){
             //开的是一个空宝箱，分数加50
-            case 0:
             case 1:
-            case 2:
                 extraGrade +=50;
                 boxString ="空箱子";
                 boxColor =Color.BLACK;
                 break;
             //开的是金币宝箱，金币加3
-            case 3:
-            case 4:
-            case 5:
+            case 2:
                 golds +=3;
                 boxString ="金币 +3";
                 boxColor =Color.YELLOW;
                 break;
             //开的是金币宝箱，金币加6
-            case 6:
-            case 7:
+            case 3:
                 golds +=6;
                 boxString ="金币 +6";
                 boxColor =Color.YELLOW;;
                 break;
             //开的是金币宝箱，金币加9
-            case 8:
-            case 9:
+            case 4:
                 golds +=9;
                 boxString ="金币 +9";
                 boxColor =Color.YELLOW;
                 break;
             //开的是金币宝箱，金币加12
-            case 10:
+            case 5:
                 golds +=12;
                 boxString ="金币 +12";
                 boxColor =Color.YELLOW;
                 break;
             //开的是金币宝箱，金币加15
-            case 11:
+            case 6:
                 golds +=15;
                 boxString ="金币 +15";
                 boxColor =Color.YELLOW;
                 break;
             //开的是能量宝箱，能量加50
-            case 12:
-            case 13:
-            case 14:
+            case 7:
                 energy +=50;
                 boxString ="能量 +50";
                 boxColor =Color.BLUE;
                 break;
             //开的是能量宝箱，能量加100
-            case 15:
-            case 16:
+            case 8:
                 energy +=100;
                 boxString ="能量 +100";
                 boxColor =Color.BLUE;
                 break;
             //开的是能量宝箱，能量加150
-            case 17:
+            case 9:
                 energy +=150;
                 boxString ="能量 +150";
                 boxColor =Color.BLUE;
                 break;
             //开的是能量宝箱，能量加200
-            case 18:
+            case 10:
                 energy +=200;
                 boxString ="能量 +200";
                 boxColor =Color.BLUE;
                 break;
             //开的是道具宝箱，得到无敌
-            case 19:
+            case 11:
                 invincible =true;
                 invincibleCount =invincibleTime;
                 boxString =" 无 敌";
                 boxColor =Color.GREEN;
                 break;
             //开的是道具宝箱，得到双倍得分
-            case 20:
+            case 12:
                 doubleGrade =true;
                 doubleGradeCount =doubleGradeTime;
                 boxString ="双倍得分";
                 boxColor =Color.GREEN;
                 break;
             //开的是道具宝箱，得到助跑
-            case 21:
+            case 13:
                 speedUp =true;
                 speedUpCount =speedUpTime;
                 sleepTime =sleepTime/2;
@@ -612,7 +578,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
                 boxColor =Color.GREEN;
                 break;
             //开的是道具宝箱，得到双倍能量收集
-            case 22:
+            case 14:
                 doubleEnergy =true;
                 doubleEnergyCount =doubleEnergyTime;
                 boxString ="双倍能量";
@@ -881,6 +847,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback,Sens
      */
     private int generateEnemy(){
         return (int)(Math.random()*5);
+    }
+    private int generateSpecialEnemy(){
+        return (int)(Math.random()*Enemy.specialAmount) +1;
     }
 
     /**

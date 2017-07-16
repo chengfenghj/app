@@ -38,7 +38,7 @@ public class GameoverActivity extends Activity {
         Intent intent =getIntent();
         grade =intent.getIntExtra("grade",1);
         golds =intent.getIntExtra("golds",1);
-        coins =grade/113+golds;
+        coins =grade/151+golds;
         gradeBean =new GradeBean(this);
         materialsBean =new MaterialsBean(this);
 
